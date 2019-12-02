@@ -10,92 +10,79 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: Scaffold(),
+      home: PointerDrawingWidget(title:'Pointer drawing lesson'),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
+class PointerDrawingWidget extends StatefulWidget {
+  PointerDrawingWidget({Key key, this.title}) : super(key: key);
 
   final String title;
 
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  _PointerDrawingWidgetState createState() => _PointerDrawingWidgetState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
+class _PointerDrawingWidgetState extends State<PointerDrawingWidget> {
+  final _points = List<Offset>();
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.display1,
-            ),
-          ],
+      body: GestureDetector(
+        // TapDownイベントを検知
+        onTapDown: _addPoint,
+        // カスタムペイント
+        child: CustomPaint(
+          painter: MyPainter(_points),
+          // タッチを有効にするため、childが必要
+          child: Center(),
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
+        // 点のクリアボタン
+        onPressed: _clearPoints,
+        tooltip: 'Clear',
+        child: Icon(Icons.clear),
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
+  }
+
+  // タッチした点をクリアする
+  void _clearPoints(){
+    setState((){
+      _points.clear();
+    });
+  }
+
+  // 点を追加
+  void _addPoint(TapDownDetails details) {
+    // setState()にリストを更新する関数を渡して状態を更新
+    setState(() {
+      _points.add(details.localPosition);
+    });
+  }
+}
+
+class MyPainter extends CustomPainter{
+  final List<Offset> _points;
+  final _rectPaint = Paint()..color = Colors.blue;
+
+  MyPainter(this._points);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // 記憶している点を描画する
+    _points.forEach((offset) =>
+        canvas.drawRect(Rect.fromCenter(center: offset, width: 20.0, height: 20.0), _rectPaint));
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) {
+    return true;
   }
 }
