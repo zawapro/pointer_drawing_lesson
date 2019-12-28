@@ -1,74 +1,86 @@
+import 'dart:collection';
+
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-void main() => runApp(MyApp());
+// 状態クラス　タッチされた点を記録する
+class PointState extends ChangeNotifier {
+  final _points = List<Offset>();
 
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Pointer drawing lesson',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: PointerDrawingWidget(title:'Pointer drawing lesson'),
-    );
+  // 変更不能なリストのビュー
+  UnmodifiableListView<Offset> get points => UnmodifiableListView(_points);
+
+  void add(Offset offset) {
+    _points.add(offset);
+    notifyListeners();
+  }
+
+  void clear() {
+    _points.clear();
+    notifyListeners();
   }
 }
 
-class PointerDrawingWidget extends StatefulWidget {
+// ChangeNotifierProviderでアプリ全体をラップする
+// その子WidgetはProvider.of()で状態にアクセスできる
+void main() => runApp(ChangeNotifierProvider(
+      create: (_) => PointState(),
+      child: MaterialApp(
+        title: 'Pointer drawing lesson',
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+        ),
+        home: PointerDrawingWidget(title: 'Pointer drawing lesson'),
+      ),
+    ));
+
+class PointerDrawingWidget extends StatelessWidget {
   PointerDrawingWidget({Key key, this.title}) : super(key: key);
 
   final String title;
 
   @override
-  _PointerDrawingWidgetState createState() => _PointerDrawingWidgetState();
-}
-
-class _PointerDrawingWidgetState extends State<PointerDrawingWidget> {
-  final _points = List<Offset>();
-
-  @override
   Widget build(BuildContext context) {
+    // 状態の取得
+    // 状態が変化したことにより、リビルドが必要なのはCustomPaintのみのため、
+    // ここではlisten:falseを指定し、 Scaffold全体がリビルドされるのを回避する
+    final pointState = Provider.of<PointState>(context, listen: false);
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title),
+        title: Text(title),
       ),
       body: GestureDetector(
         // TapDownイベントを検知
-        onTapDown: _addPoint,
-        // カスタムペイント
-        child: CustomPaint(
-          painter: MyPainter(_points),
-          // タッチを有効にするため、childが必要
-          child: Center(),
+        onTapDown: (TapDownDetails details) {
+          // タッチされた点を追加して状態を更新する
+          pointState.add(details.localPosition);
+        },
+        // 状態のConsumer
+        // 状態の変化が通知されると、リビルドされる
+        child: Consumer<PointState>(
+          builder: (BuildContext context, PointState value, Widget _) {
+            // カスタムペイント
+            return CustomPaint(
+              painter: MyPainter(value.points),
+              // タッチを有効にするため、childが必要
+              child: Center(),
+            );
+          },
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        // 点のクリアボタン
-        onPressed: _clearPoints,
+        // タッチした点をクリアする
+        onPressed: pointState.clear,
         tooltip: 'Clear',
         child: Icon(Icons.clear),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      ),
     );
-  }
-
-  // タッチした点をクリアする
-  void _clearPoints(){
-    setState((){
-      _points.clear();
-    });
-  }
-
-  // 点を追加
-  void _addPoint(TapDownDetails details) {
-    // setState()にリストを更新する関数を渡して状態を更新
-    setState(() {
-      _points.add(details.localPosition);
-    });
   }
 }
 
-class MyPainter extends CustomPainter{
+// 描画クラス
+class MyPainter extends CustomPainter {
   final List<Offset> _points;
   final _rectPaint = Paint()..color = Colors.blue;
 
@@ -77,8 +89,9 @@ class MyPainter extends CustomPainter{
   @override
   void paint(Canvas canvas, Size size) {
     // 記憶している点を描画する
-    _points.forEach((offset) =>
-        canvas.drawRect(Rect.fromCenter(center: offset, width: 20.0, height: 20.0), _rectPaint));
+    _points.forEach((offset) => canvas.drawRect(
+        Rect.fromCenter(center: offset, width: 20.0, height: 20.0),
+        _rectPaint));
   }
 
   @override
